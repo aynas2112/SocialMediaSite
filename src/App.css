@@ -10,3 +10,13 @@
 .placeholder-custom::placeholder {
   color: #F1C40F;
 }
+
+.custom-handle {
+  position: absolute;
+  width: 10px;
+  height: 100%;
+  top: 0;
+  right: 0;
+  cursor: ew-resize;
+  z-index: 1;
+}

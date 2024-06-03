@@ -7,21 +7,30 @@ import {
     signInWithPopup, 
     updatePassword, 
     sendPasswordResetEmail, 
-    sendEmailVerification 
+    sendEmailVerification,
+    getIdToken
 } from "firebase/auth";
 
 export const doCreateUserWithEmailAndPassword = async (email, password) => {
-    return createUserWithEmailAndPassword(auth, email, password);
-};
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const token=await userCredential.user.getIdToken();
+    console.log({user:userCredential.user,token});
+    return {user:userCredential.user,token};
+};  
 
-export const doSignInWithEmailAndPassword = (email, password) => {
-    return signInWithEmailAndPassword(auth, email, password);
+export const doSignInWithEmailAndPassword = async(email, password) => {
+    const userCredential = signInWithEmailAndPassword(auth, email, password);
+    const token=await userCredential.user.getIdToken();
+    console.log({user:userCredential.user,token});
+    return {user:userCredential.user,token};
 };
 
 export const doSignInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
-    return result.user;
+    const token=await result.user.getIdToken();
+    console.log({user:result.user,token});
+    return {user:result.user,token};
 };
 
 export const doSignOut = () => {
