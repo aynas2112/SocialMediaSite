@@ -6,12 +6,19 @@ import { useAuth } from '../../contexts/authContexts';
 import { db } from '../../firebase/firebase'; // Import Firestore
 import { collection, query, where, getDocs } from 'firebase/firestore'; // Import necessary functions from Firestore
 
+// import { useDispatch } from "react-redux";
+// import {useNavigate} from "react-router-dom";
+import { signup } from '../../actions/auth';
+
 const Login = () => {
     const { userLoggedIn } = useAuth();
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [isSigningIn, setIsSigningIn] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+
+    // const dispatch = useDispatch();
+    // const navigate = useNavigate();
 
     const onSubmit = async (e) => {
         e.preventDefault();
@@ -31,12 +38,11 @@ const Login = () => {
                     if (userQuerySnapshot.empty) {
                         throw new Error('auth/user-not-found');
                     }
-
+                    
                     // Retrieve the email associated with the username
                     email = userQuerySnapshot.docs[0].data().email;
                 }
-
-                // Authenticate using the retrieved email
+                
                 await doSignInWithEmailAndPassword(email, password);
             } catch (error) {
                 setIsSigningIn(false);

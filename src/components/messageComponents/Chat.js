@@ -4,13 +4,15 @@ import { collection, getDocs } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css';
+// import {useDispatch} from "react-redux";
+import { getChats } from '../../actions/chats';
 
 const Chat = () => {
   const [contacts, setContacts] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
+  // const dispatch = useDispatch();
   useEffect(() => {
     const fetchCurrentUser = async () => {
       const auth = getAuth();
