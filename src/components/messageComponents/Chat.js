@@ -117,7 +117,6 @@ const Chat = () => {
       timestamp: new Date().toISOString()
     };
     socket.emit('sendMessage', message);
-    setMessages((prevMessages) => [...prevMessages, message]);
     setNewMessage('');
   };
 
