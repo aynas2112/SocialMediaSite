@@ -7,8 +7,10 @@ import SignUp from './components/authComponents/Signup';
 import ForgotPassword from './components/authComponents/ForgotPassword';
 import MessageApp from './components/messageComponents/MessageApp';
 import { AuthProvider } from './contexts/authContexts';
+import { gql,useMutation,useQuery } from '@apollo/client';
 
-function App() {
+function App() {  
+  
   return (
     <AuthProvider>
       <Router>

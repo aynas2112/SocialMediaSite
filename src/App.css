@@ -7,6 +7,17 @@
   font-style: normal;
   font-size: 5rem;
 }
+
+.smallLogoHead {
+  @apply text-center font-serif;
+  font-family: "Cormorant Upright", serif;
+  font-weight: 600;
+  font-style: normal;
+  font-size: 2rem; /* Adjust the size as needed */
+  color: #8E44AD; /* Set the color to #8E44AD */
+}
+
+
 .placeholder-custom::placeholder {
   color: #F1C40F;
 }
@@ -18,5 +29,35 @@
   top: 0;
   right: 0;
   cursor: ew-resize;
-  z-index: 1;
+  z-index: 10; /* Ensure it has a higher z-index */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-handle::before {
+  content: '';
+  width: 2px;
+  height: 24px;
+  background-color: gray;
+  position: absolute;
+  transform: rotate(45deg);
+}
+
+.custom-handle::after {
+  content: '';
+  width: 2px;
+  height: 24px;
+  background-color: gray;
+  position: absolute;
+  transform: rotate(-45deg);
+}
+
+.custom-handle:hover::before,
+.custom-handle:hover::after {
+  opacity: 1;
+}
+
+.rotate-arrow {
+  transform: rotate(45deg); 
 }

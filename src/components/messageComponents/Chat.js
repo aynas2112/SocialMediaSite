@@ -3,13 +3,25 @@ import { db } from '../../firebase/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { ResizableBox } from 'react-resizable';
+import Modal from 'react-modal';
+import io from 'socket.io-client';
 import 'react-resizable/css/styles.css';
+import { useNavigate } from 'react-router-dom';
+
+Modal.setAppElement('#root'); // Set the root element for accessibility
+
+const socket = io('http://localhost:4000'); // Replace with your server's URL
 
 const Chat = () => {
-  const [contacts, setContacts] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -18,6 +30,9 @@ const Chat = () => {
       if (user) {
         console.log("Current user:", user);
         setCurrentUser(user);
+        socket.emit('join', { email: user.email, firstname: user.displayName || 'User' });
+      } else {
+        console.log("No user is currently logged in.");
       }
     };
 
@@ -25,19 +40,27 @@ const Chat = () => {
   }, []);
 
   useEffect(() => {
-    const fetchContacts = async () => {
+    const fetchUsers = async () => {
       if (currentUser) {
-        const contactsCollection = collection(db, 'contacts');
-        const contactsSnapshot = await getDocs(contactsCollection);
-        const contactsList = contactsSnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(contact => contact.email !== currentUser.email); // Filter out current user
-        console.log("Fetched contacts:", contactsList);
-        setContacts(contactsList);
+        console.log("Fetching users for current user:", currentUser.email);
+        try {
+          const usersCollection = collection(db, 'users');
+          const usersSnapshot = await getDocs(usersCollection);
+          const usersList = usersSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }))
+            .filter(user => user.email !== currentUser.email);
+          console.log("Fetched users:", usersList);
+          setUsers(usersList);
+          setFilteredUsers(usersList.slice(0, 5)); // Set top 5 users by default
+        } catch (error) {
+          console.error("Error fetching users:", error);
+        }
+      } else {
+        console.log("Current user is not set yet.");
       }
     };
 
-    fetchContacts();
+    fetchUsers();
   }, [currentUser]);
 
   useEffect(() => {
@@ -52,59 +75,220 @@ const Chat = () => {
     };
   }, []);
 
-  return (
-    <div className={`flex ${isMobile ? 'flex-col' : 'w-full'} h-screen`}>
-      {/* Left Sidebar */}
-      <div className={`flex flex-col h-full border-r border-gray-300 overflow-hidden ${isMobile ? 'w-full' : 'w-1/4'}`}>
-        <div className='flex items-center p-4'>
-          <div className='ml-4'>
-            <h3 className='text-xl'>UserName</h3>
-          </div>
+  useEffect(() => {
+    socket.on('receiveMessage', (message) => {
+      setMessages((prevMessages) => [...prevMessages, message]);
+    });
+
+    return () => {
+      socket.off('receiveMessage');
+    };
+  }, []);
+
+  const handleBackToContacts = () => {
+    setSelectedChat(null);
+  };
+
+  const handleBackToHome = () => {
+    navigate('/'); // Navigate to the home route
+  };
+
+  const openModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleSearch = (event) => {
+    const searchTerm = event.target.value.toLowerCase();
+    const filtered = users.filter(user =>
+      user.firstname.toLowerCase().includes(searchTerm) || 
+      user.lastname.toLowerCase().includes(searchTerm)
+    );
+    setFilteredUsers(filtered.slice(0, 5)); // Show top 5 filtered users
+  };
+
+  const sendMessage = () => {
+    const message = {
+      sender: currentUser.email,
+      text: newMessage,
+      timestamp: new Date().toISOString()
+    };
+    socket.emit('sendMessage', message);
+    setMessages((prevMessages) => [...prevMessages, message]);
+    setNewMessage('');
+  };
+
+  const renderContactsList = () => (
+    <div className={`flex flex-col ${isMobile ? 'w-full h-full' : 'w-full h-screen'}`}>
+      <div className='flex items-center p-4'>
+        <button
+          className='p-2 rounded-lg mr-2'
+          onClick={handleBackToHome}
+        >
+          <i className="ti ti-chevron-left text-gray-300 text-2xl"></i>
+        </button>
+        <div className='ml-2 flex-grow'>
+          <h3 className='smallLogoHead'>Unigram</h3>
         </div>
-        <hr className='border-gray-300' />
-        <div className='p-4'>
-          <input
-            type='text'
-            className='w-full p-2 bg-gray-100 border border-gray-300 rounded-lg'
-            placeholder='Search...'
-          />
-        </div>
-        <hr className='border-gray-300' />
-        <div className='flex-grow overflow-y-auto'>
-          <h4 className='text-lg p-4'>Messages</h4>
-          <ul>
-            {contacts.map(contact => (
-              <li
-                key={contact.id}
-                className='flex items-center p-4 hover:bg-gray-200 cursor-pointer'
-                onClick={() => setSelectedChat(contact)}
-              >
-                <div>
-                  <h5 className='text-black text-md'>{contact.name}</h5>
-                </div>
-              </li>
-            ))}
-          </ul>
+        <button className='ml-auto p-2'>
+          <i className="ti ti-users-group text-gray-300 text-2xl"></i>
+        </button>
+      </div>
+      <div className='p-4'>
+        <input
+          type='text'
+          className='w-full p-2 bg-[#1B1B1B] border border-gray-300 rounded-lg text-white mt-4'
+          placeholder='Search...'
+          onChange={handleSearch}
+        />
+      </div>
+      <div className='flex-grow overflow-y-auto'>
+        <h4 className='text-lg p-4 text-white'>Messages</h4>
+        <ul>
+          {users.map(user => (
+            <li
+              key={user.id}
+              className='flex items-center p-4 cursor-pointer hover:bg-gray-700 hover:bg-opacity-50'
+              onClick={() => setSelectedChat(user)}
+            >
+              <div>
+                <h5 className='text-md text-white'>{user.firstname}</h5>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+
+  const renderChatBox = () => (
+    <div className='flex-grow h-full flex flex-col text-white'>
+      {isMobile && (
+        <button
+          className='bg-blue-500 text-white p-2 rounded-lg m-2'
+          onClick={handleBackToContacts}
+        >
+          Back to Contacts
+        </button>
+      )}
+      <div className='flex justify-between items-center p-4 border-b border-gray-300'>
+        <h2 className='text-xl text-white'>{selectedChat?.firstname}</h2>
+        <div className='flex items-center'>
+          <button className='ml-4 p-2'>
+            <i className="ti ti-phone text-gray-300 text-2xl"></i>
+          </button>
+          <button className='ml-4 p-2'>
+            <i className="ti ti-video text-gray-300 text-2xl"></i>
+          </button>
         </div>
       </div>
-      {/* Main Chat Area */}
-      {!isMobile && selectedChat && (
-        <div className='flex-grow h-full flex flex-col'>
-          <div className='flex justify-between items-center p-4 border-b border-gray-300'>
-            <h2 className='text-xl'>{selectedChat.name}</h2>
+      <div className='flex-grow overflow-y-auto p-4'>
+        {messages.map((msg, index) => (
+          <div key={index} className={`p-2 ${msg.sender === currentUser.email ? 'text-right' : 'text-left'}`}>
+            <span className={`inline-block p-2 rounded-lg ${msg.sender === currentUser.email ? 'bg-blue-500' : 'bg-gray-700'} text-white`}>
+              {msg.text}
+            </span>
           </div>
-          <div className='flex-grow overflow-y-auto p-4'>
-            {/* Chat messages will go here */}
-          </div>
-          <div className='p-4 border-t border-gray-300'>
-            <input
-              type='text'
-              className='w-full p-2 border border-gray-300 rounded-lg'
-              placeholder='Type a message...'
-            />
+        ))}
+      </div>
+      <div className='p-4 border-t border-gray-300 flex items-center'>
+        <input
+          type='text'
+          className='flex-grow p-2 bg-[#1B1B1B] border border-gray-300 rounded-lg text-white'
+          placeholder='Type a message...'
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+        />
+        <button className='ml-2 p-2' onClick={sendMessage}>
+          <i className="ti ti-paperclip text-gray-300 text-2xl"></i>
+        </button>
+        <button className='ml-2 p-2 rotate-arrow' onClick={sendMessage}>
+          <i className="ti ti-send text-gray-300 text-2xl"></i>
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderSendMessageButton = () => (
+    <div className='flex items-center justify-center h-full'>
+      <button
+        className='bg-blue-500 text-white p-4 rounded-lg'
+        onClick={openModal}
+      >
+        Send Message
+      </button>
+    </div>
+  );
+
+  const renderModal = () => (
+    <Modal
+      isOpen={isModalOpen}
+      onRequestClose={closeModal}
+      contentLabel="Send Message"
+      className="bg-[#1B1B1B] p-4 rounded-lg max-w-3xl mx-auto mt-20" // Increased width to max-w-3xl
+      overlayClassName="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center"
+    >
+      <div className='flex justify-between items-center mb-4'>
+        <h2 className='text-xl text-white'>Send Message</h2>
+        <button
+          className='text-white text-2xl'
+          onClick={closeModal}
+        >
+          &times;
+        </button>
+      </div>
+      <input
+        type='text'
+        className='w-full p-2 bg-[#2B2B2B] border border-gray-300 rounded-lg text-white mb-4'
+        placeholder='Search...'
+        onChange={handleSearch}
+      />
+      <ul>
+        {filteredUsers.map(user => (
+          <li
+            key={user.id}
+            className='flex items-center p-4 cursor-pointer hover:bg-gray-700 hover:bg-opacity-50'
+            onClick={() => {
+              setSelectedChat(user);
+              closeModal();
+            }}
+          >
+            <div>
+              <h5 className='text-md text-white'>{user.firstname}</h5>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Modal>
+  );
+
+  return (
+    <div className='h-screen bg-black'>
+      {isMobile ? (
+        selectedChat ? renderChatBox() : renderContactsList()
+      ) : (
+        <div className='flex h-full'>
+          <ResizableBox
+            width={300}
+            height={Infinity}
+            minConstraints={[200, Infinity]}
+            maxConstraints={[500, Infinity]}
+            axis="x"
+            className='flex flex-col h-full border-r border-gray-300 resize-x overflow-hidden'
+            resizeHandles={['e']}
+            handleClasses={{ right: 'custom-handle' }}
+          >
+            {renderContactsList()}
+          </ResizableBox>
+          <div className="flex-grow flex items-center justify-center">
+            {selectedChat ? renderChatBox() : renderSendMessageButton()}
           </div>
         </div>
       )}
+      {renderModal()}
     </div>
   );
 };
