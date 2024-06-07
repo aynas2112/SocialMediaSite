@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../../firebase/firebase';
+import { db, storage } from '../../firebase/firebase';
 import { collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { ResizableBox } from 'react-resizable';
 import Modal from 'react-modal';
 import io from 'socket.io-client';
@@ -21,6 +22,8 @@ const Chat = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messages, setMessages] = useState({});
   const [newMessage, setNewMessage] = useState('');
+  const [mediaFile, setMediaFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -85,6 +88,7 @@ const Chat = () => {
   useEffect(() => {
     const fetchMessages = async () => {
       if (selectedChat) {
+        socket.emit('joinChat', selectedChat.id); // Join the chat room
         try {
           const messagesCollection = collection(db, 'messages');
           const q = query(
@@ -106,6 +110,33 @@ const Chat = () => {
 
     fetchMessages();
   }, [selectedChat]);
+
+  useEffect(() => {
+    const fetchAllMessages = async () => {
+      try {
+        const messagesCollection = collection(db, 'messages');
+        const messagesSnapshot = await getDocs(messagesCollection);
+        const allMessages = {};
+
+        messagesSnapshot.forEach(doc => {
+          const message = doc.data();
+          const chatId = message.chatId;
+
+          if (!allMessages[chatId]) {
+            allMessages[chatId] = [];
+          }
+
+          allMessages[chatId].push(message);
+        });
+
+        setMessages(allMessages);
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      }
+    };
+
+    fetchAllMessages();
+  }, []);
 
   const handleBackToContacts = () => {
     setSelectedChat(null);
@@ -133,22 +164,65 @@ const Chat = () => {
   };
 
   const sendMessage = async () => {
-    if (selectedChat && newMessage.trim()) {
+    if (selectedChat && (newMessage.trim() || mediaFile)) {
       const message = {
         chatId: selectedChat.id,
         sender: currentUser.email,
         text: newMessage,
+        mediaUrl: '',
+        mediaType: '',
         timestamp: new Date().toISOString()
       };
-      socket.emit('sendMessage', message);
-      setNewMessage('');
 
-      // Save the message to Firestore
-      try {
-        await addDoc(collection(db, 'messages'), message);
-      } catch (error) {
-        console.error("Error saving message:", error);
+      if (mediaFile) {
+        const storageRef = ref(storage, `media/${new Date().getTime()}_${mediaFile.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, mediaFile);
+
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          },
+          (error) => {
+            console.error('Error uploading file:', error);
+          },
+          async () => {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            message.mediaUrl = downloadURL;
+            message.mediaType = mediaFile.type.startsWith('image') ? 'image' : 'video';
+
+            socket.emit('sendMessage', message);
+            setNewMessage('');
+            setMediaFile(null);
+            setUploadProgress(0);
+
+            try {
+              await addDoc(collection(db, 'messages'), message);
+            } catch (error) {
+              console.error("Error saving message:", error);
+            }
+          }
+        );
+      } else {
+        socket.emit('sendMessage', message);
+        setNewMessage('');
+
+        try {
+          await addDoc(collection(db, 'messages'), message);
+        } catch (error) {
+          console.error("Error saving message:", error);
+        }
       }
+    }
+  };
+
+  const handleMediaChange = (event) => {
+    const file = event.target.files[0];
+    if (file && (file.type.startsWith('image') || (file.type.startsWith('video') && file.duration <= 120))) {
+      setMediaFile(file);
+    } else {
+      alert('Please select an image or a video up to 2 minutes long.');
     }
   };
 
@@ -205,7 +279,7 @@ const Chat = () => {
           Back to Contacts
         </button>
       )}
-      <div className='flex justify-between items-center p-4 border-b border-gray-300'>
+            <div className='flex justify-between items-center p-4 border-b border-gray-300'>
         <h2 className='text-xl text-white'>{selectedChat?.firstname}</h2>
         <div className='flex items-center'>
           <button className='ml-4 p-2'>
@@ -218,10 +292,25 @@ const Chat = () => {
       </div>
       <div className='flex-grow overflow-y-auto p-4'>
         {(messages[selectedChat.id] || []).map((msg, index) => (
-          <div key={index} className={`p-2 ${msg.sender === currentUser.email ? 'text-right' : 'text-left'}`}>
-            <span className={`inline-block p-2 rounded-lg ${msg.sender === currentUser.email ? 'bg-blue-500' : 'bg-gray-700'} text-white`}>
-              {msg.text}
-            </span>
+          <div key={index}>
+            <div className={`relative flex mb-2 ${msg.sender === currentUser.email ? 'justify-end' : 'justify-start'}`}>
+              <div className={`inline-block p-2 rounded-lg ${msg.sender === currentUser.email ? 'bg-blue-500 text-white' : 'bg-gray-700 text-white'}`}>
+                {msg.text}
+                {msg.mediaUrl && (
+                  msg.mediaType === 'image' ? (
+                    <img src={msg.mediaUrl} alt="Media" className="mt-2 max-w-xs rounded-lg" />
+                  ) : (
+                    <video controls className="mt-2 max-w-xs rounded-lg">
+                      <source src={msg.mediaUrl} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  )
+                )}
+              </div>
+            </div>
+            <div className={`text-xs text-gray-400 ${msg.sender === currentUser.email ? 'text-right' : 'text-left'}`}>
+              {formatMessageTime(msg.timestamp)}
+            </div>
           </div>
         ))}
       </div>
@@ -233,15 +322,37 @@ const Chat = () => {
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
         />
-        <button className='ml-2 p-2' onClick={sendMessage}>
+        <input
+          type="file"
+          id="mediaUpload"
+          accept="image/*,video/*"
+          className="hidden"
+          onChange={handleMediaChange}
+        />
+        <label htmlFor="mediaUpload" className="ml-2 p-2 cursor-pointer">
           <i className="ti ti-paperclip text-gray-300 text-2xl"></i>
-        </button>
-        <button className='ml-2 p-2 rotate-arrow' onClick={sendMessage}>
-        <i className="ti ti-send text-gray-300 text-2xl"></i>
+        </label>
+        <button className='ml-2 p-2' onClick={sendMessage}>
+          <i className="ti ti-send text-gray-300 text-2xl"></i>
         </button>
       </div>
+      {uploadProgress > 0 && uploadProgress < 100 && (
+        <div className="p-4">
+          <div className="relative w-full bg-gray-200 rounded">
+            <div className="absolute top-0 left-0 h-full bg-blue-500 rounded" style={{ width: `${uploadProgress}%` }}></div>
+            <span className="relative text-white">{uploadProgress.toFixed(2)}%</span>
+          </div>
+        </div>
+      )}
     </div>
   );
+
+  const formatMessageTime = (timestamp) => {
+    const date = new Date(timestamp);
+    const hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
 
   const renderSendMessageButton = () => (
     <div className='flex items-center justify-center h-full'>
@@ -259,7 +370,7 @@ const Chat = () => {
       isOpen={isModalOpen}
       onRequestClose={closeModal}
       contentLabel="Send Message"
-      className="bg-[#1B1B1B] p-4 rounded-lg max-w-3xl mx-auto mt-20" // Increased width to max-w-3xl
+      className="bg-[#1B1B1B] p-4 rounded-lg max-w-3xl mx-auto mt-20"
       overlayClassName="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center"
     >
       <div className='flex justify-between items-center mb-4'>

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { doSignInWithEmailAndPassword, doSignInWithGoogle } from '../../firebase/auth';
 import { useAuth } from '../../contexts/authContexts';
-import { db } from '../../firebase/firebase'; // Import Firestore
+import { db } from '../../firebase/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore'; // Import necessary functions from Firestore
 
 // import { useDispatch } from "react-redux";

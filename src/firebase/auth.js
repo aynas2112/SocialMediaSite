@@ -1,5 +1,5 @@
 // auth.js
-import { auth } from "./firebase";
+import {auth} from "./firebase"
 import { 
     createUserWithEmailAndPassword, 
     GoogleAuthProvider, 
