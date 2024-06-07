@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../../firebase/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { ResizableBox } from 'react-resizable';
 import Modal from 'react-modal';
@@ -19,7 +19,7 @@ const Chat = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState({});
   const [newMessage, setNewMessage] = useState('');
   const navigate = useNavigate();
 
@@ -28,11 +28,8 @@ const Chat = () => {
       const auth = getAuth();
       const user = auth.currentUser;
       if (user) {
-        console.log("Current user:", user);
         setCurrentUser(user);
         socket.emit('join', { email: user.email, firstname: user.displayName || 'User' });
-      } else {
-        console.log("No user is currently logged in.");
       }
     };
 
@@ -42,21 +39,17 @@ const Chat = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       if (currentUser) {
-        console.log("Fetching users for current user:", currentUser.email);
         try {
           const usersCollection = collection(db, 'users');
           const usersSnapshot = await getDocs(usersCollection);
           const usersList = usersSnapshot.docs
             .map(doc => ({ id: doc.id, ...doc.data() }))
             .filter(user => user.email !== currentUser.email);
-          console.log("Fetched users:", usersList);
           setUsers(usersList);
           setFilteredUsers(usersList.slice(0, 5)); // Set top 5 users by default
         } catch (error) {
           console.error("Error fetching users:", error);
         }
-      } else {
-        console.log("Current user is not set yet.");
       }
     };
 
@@ -77,13 +70,42 @@ const Chat = () => {
 
   useEffect(() => {
     socket.on('receiveMessage', (message) => {
-      setMessages((prevMessages) => [...prevMessages, message]);
+      const chatId = message.chatId;
+      setMessages((prevMessages) => ({
+        ...prevMessages,
+        [chatId]: [...(prevMessages[chatId] || []), message]
+      }));
     });
 
     return () => {
       socket.off('receiveMessage');
     };
   }, []);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (selectedChat) {
+        try {
+          const messagesCollection = collection(db, 'messages');
+          const q = query(
+            messagesCollection,
+            where('chatId', '==', selectedChat.id),
+            orderBy('timestamp', 'asc')
+          );
+          const messagesSnapshot = await getDocs(q);
+          const messagesList = messagesSnapshot.docs.map(doc => doc.data());
+          setMessages(prevMessages => ({
+            ...prevMessages,
+            [selectedChat.id]: messagesList
+          }));
+        } catch (error) {
+          console.error("Error fetching messages:", error);
+        }
+      }
+    };
+
+    fetchMessages();
+  }, [selectedChat]);
 
   const handleBackToContacts = () => {
     setSelectedChat(null);
@@ -110,14 +132,24 @@ const Chat = () => {
     setFilteredUsers(filtered.slice(0, 5)); // Show top 5 filtered users
   };
 
-  const sendMessage = () => {
-    const message = {
-      sender: currentUser.email,
-      text: newMessage,
-      timestamp: new Date().toISOString()
-    };
-    socket.emit('sendMessage', message);
-    setNewMessage('');
+  const sendMessage = async () => {
+    if (selectedChat && newMessage.trim()) {
+      const message = {
+        chatId: selectedChat.id,
+        sender: currentUser.email,
+        text: newMessage,
+        timestamp: new Date().toISOString()
+      };
+      socket.emit('sendMessage', message);
+      setNewMessage('');
+
+      // Save the message to Firestore
+      try {
+        await addDoc(collection(db, 'messages'), message);
+      } catch (error) {
+        console.error("Error saving message:", error);
+      }
+    }
   };
 
   const renderContactsList = () => (
@@ -147,7 +179,7 @@ const Chat = () => {
       <div className='flex-grow overflow-y-auto'>
         <h4 className='text-lg p-4 text-white'>Messages</h4>
         <ul>
-          {users.map(user => (
+          {filteredUsers.map(user => (
             <li
               key={user.id}
               className='flex items-center p-4 cursor-pointer hover:bg-gray-700 hover:bg-opacity-50'
@@ -185,7 +217,7 @@ const Chat = () => {
         </div>
       </div>
       <div className='flex-grow overflow-y-auto p-4'>
-        {messages.map((msg, index) => (
+        {(messages[selectedChat.id] || []).map((msg, index) => (
           <div key={index} className={`p-2 ${msg.sender === currentUser.email ? 'text-right' : 'text-left'}`}>
             <span className={`inline-block p-2 rounded-lg ${msg.sender === currentUser.email ? 'bg-blue-500' : 'bg-gray-700'} text-white`}>
               {msg.text}
@@ -205,7 +237,7 @@ const Chat = () => {
           <i className="ti ti-paperclip text-gray-300 text-2xl"></i>
         </button>
         <button className='ml-2 p-2 rotate-arrow' onClick={sendMessage}>
-          <i className="ti ti-send text-gray-300 text-2xl"></i>
+        <i className="ti ti-send text-gray-300 text-2xl"></i>
         </button>
       </div>
     </div>
