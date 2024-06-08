@@ -215,24 +215,28 @@ const Chat = () => {
   
 
   const sendMessageToFirestore = async (mediaUrl) => {
-    const message = {
-      chatId: selectedChat.id,
-      sender: currentUser.email,
-      text: newMessage,
-      mediaUrl: mediaUrl,
-      timestamp: new Date().toISOString()
-    };
+  if (!selectedChat) {
+    return; // No selected chat, return early
+  }
 
-    socket.emit('sendMessage', message);
-    setNewMessage('');
-    setSelectedMedia(null);
-
-    try {
-      await addDoc(collection(db, 'messages'), message);
-    } catch (error) {
-      console.error("Error saving message:", error);
-    }
+  const message = {
+    chatId: selectedChat.id,
+    sender: currentUser.email,
+    text: newMessage,
+    mediaUrl: mediaUrl,
+    timestamp: new Date().toISOString()
   };
+
+  socket.emit('sendMessage', message);
+  setNewMessage('');
+  setSelectedMedia(null);
+
+  try {
+    await addDoc(collection(db, 'messages'), message);
+  } catch (error) {
+    console.error("Error saving message:", error);
+  }
+};
 
   const renderContactsList = () => (
     <div className={`flex flex-col ${isMobile ? 'w-full h-full' : 'w-full h-screen'}`}>
