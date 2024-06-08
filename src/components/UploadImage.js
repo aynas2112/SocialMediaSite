@@ -84,7 +84,7 @@ const UploadImage = () => {
               Content
             </label>
             <textarea
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
+                 className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-black"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows="4"
