@@ -22,6 +22,9 @@ const Home = () => {
         <Link to='/messages'>
           <button className='bg-[#8E44AD] text-[#F1C40F] p-2 rounded'>Message</button>
         </Link>
+        <Link to='/uploads'>
+          <button className='bg-[#8E44AD] text-[#F1C40F] p-2 rounded'>Post</button>
+        </Link>
         <button onClick={handleSignOut} className='ml-4 bg-[#8E44AD] text-[#F1C40F] p-2 rounded'>Sign Out</button>
       </div>
       <h1 className='logoHead'>UniGram</h1>

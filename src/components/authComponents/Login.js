@@ -81,7 +81,12 @@ const Login = () => {
         }
 
         const data = await response.json(); // Parse the response body as JSON
-        console.log("Backend response:", data);
+        if (data.token) {
+          localStorage.setItem("jwt", data.token);
+        } else {
+          throw new Error("No token received");
+        }
+
       } catch (error) {
         setErrorMessage(error.message);
         setIsSigningIn(false);
