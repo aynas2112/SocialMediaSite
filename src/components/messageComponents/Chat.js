@@ -204,14 +204,19 @@ const Chat = () => {
             // Media upload completed, get download URL
             mediaUrl = await getDownloadURL(uploadTask.snapshot.ref);
             await sendMessageToFirestore(mediaUrl);
+            console.log('Media uploaded and message sent.');
           }
         );
       } else {
         // No media file selected, send message without media
         await sendMessageToFirestore(mediaUrl);
+        console.log('Message sent.');
       }
+    } else {
+      console.log('No chat selected or message content empty.');
     }
   };
+  
   
 
   const sendMessageToFirestore = async (mediaUrl) => {
@@ -299,7 +304,7 @@ const Chat = () => {
         </div>
       </div>
       <div className='flex-grow overflow-y-auto p-4'>
-        {([...messages[selectedChat.id]] || []).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).map((msg, index) => (
+        {messages[selectedChat.id] && messages[selectedChat.id].map((msg, index) => (
           <div key={index}>
             <div className={`relative flex mb-2 ${msg.sender === currentUser.email ? 'justify-end' : 'justify-start'}`}>
               <div className={`inline-block p-2 rounded-lg ${msg.sender === currentUser.email ? 'bg-blue-500 text-white' : 'bg-gray-700 text-white'}`}>
@@ -345,6 +350,7 @@ const Chat = () => {
       </div>
     </div>
   );
+  
   
   
   

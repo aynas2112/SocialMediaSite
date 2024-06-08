@@ -34,12 +34,14 @@ io.on('connection', (socket) => {
     console.log(`Sending message to chat room ${message.chatId} and receiver ${message.receiver}:`, message);
     const receiver = users.find(user => user.email === message.receiver);
     if (receiver) {
+      console.log(`Message being sent to: ${receiver.email}`); // Add this line to log the email ID
       io.to(receiver.socketId).emit('receiveMessage', message);
       console.log(`Message sent to ${message.receiver}:`, message);
     }
     io.to(message.chatId).emit('receiveMessage', message);
     console.log(`Message broadcasted to chat room ${message.chatId}`);
   });
+  
 
   socket.on('disconnect', () => {
     const index = users.findIndex(user => user.socketId === socket.id);
