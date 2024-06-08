@@ -182,55 +182,57 @@ const Chat = () => {
   };
   
 
-  // const sendMessageToFirestore = async (mediaUrl) => {
-  //   if (!selectedChat) {
-  //     return; // No selected chat, return early
-  //   }
+  const sendMessage = async () => {
+    console.log('Sending message...');
+    if (selectedChat && (newMessage.trim() || selectedMedia)) {
+      let mediaUrl = '';
   
-  //   const message = {
-  //     chatId: selectedChat.id,
-  //     sender: currentUser.email,
-  //     text: newMessage,
-  //     mediaUrl: mediaUrl,
-  //     timestamp: new Date().toISOString()
-  //   };
+      if (selectedMedia) {
+        // Upload media file if selected
+        const storageRef = ref(storage, `media/${selectedMedia.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, selectedMedia);
   
-  //   socket.emit('sendMessage', message);
-  //   setNewMessage('');
-  //   setSelectedMedia(null);
-  
-  //   try {
-  //     await addDoc(collection(db, 'messages'), message);
-  //   } catch (error) {
-  //     console.error("Error saving message:", error);
-  //   }
-  // };
-  
+        uploadTask.on('state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log('Upload is ' + progress + '% done');
+          },
+          (error) => {
+            console.error('Error uploading file:', error);
+          },
+          async () => {
+            // Media upload completed, get download URL
+            mediaUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            await sendMessageToFirestore(mediaUrl);
+          }
+        );
+      } else {
+        // No media file selected, send message without media
+        await sendMessageToFirestore(mediaUrl);
+      }
+    }
+  };
   
 
   const sendMessageToFirestore = async (mediaUrl) => {
-  if (!selectedChat) {
-    return; // No selected chat, return early
-  }
+    const message = {
+      chatId: selectedChat.id,
+      sender: currentUser.email,
+      text: newMessage,
+      mediaUrl: mediaUrl,
+      timestamp: new Date().toISOString()
+    };
 
-  const message = {
-    chatId: selectedChat.id,
-    sender: currentUser.email,
-    text: newMessage,
-    mediaUrl: mediaUrl,
-    timestamp: new Date().toISOString()
+    socket.emit('sendMessage', message);
+    setNewMessage('');
+    setSelectedMedia(null);
+
+    try {
+      await addDoc(collection(db, 'messages'), message);
+    } catch (error) {
+      console.error("Error saving message:", error);
+    }
   };
-
-  socket.emit('sendMessage', message);
-  setNewMessage('');
-  setSelectedMedia(null);
-
-  try {
-    await addDoc(collection(db, 'messages'), message);
-  } catch (error) {
-    console.error("Error saving message:", error);
-  }
-};
 
   const renderContactsList = () => (
     <div className={`flex flex-col ${isMobile ? 'w-full h-full' : 'w-full h-screen'}`}>
