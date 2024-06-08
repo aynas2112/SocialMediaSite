@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { db, storage } from '../../firebase/firebase';
 import { collection, getDocs, addDoc, query, where, orderBy } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
-import { getDownloadURL, ref, uploadBytesResumable } from 'firebase/storage';
 import { ResizableBox } from 'react-resizable';
 import Modal from 'react-modal';
 import io from 'socket.io-client';
 import 'react-resizable/css/styles.css';
 import { useNavigate } from 'react-router-dom';
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
 Modal.setAppElement('#root'); // Set the root element for accessibility
 
@@ -22,8 +22,8 @@ const Chat = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messages, setMessages] = useState({});
   const [newMessage, setNewMessage] = useState('');
-  const [mediaFile, setMediaFile] = useState(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedMedia, setSelectedMedia] = useState(null);
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -163,66 +163,74 @@ const Chat = () => {
     setFilteredUsers(filtered.slice(0, 5)); // Show top 5 filtered users
   };
 
-  const sendMessage = async () => {
-    if (selectedChat && (newMessage.trim() || mediaFile)) {
-      const message = {
-        chatId: selectedChat.id,
-        sender: currentUser.email,
-        text: newMessage,
-        mediaUrl: '',
-        mediaType: '',
-        timestamp: new Date().toISOString()
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        if (video.duration <= 120) {
+          setSelectedMedia(file);
+        } else {
+          alert("Please select a video up to 2 minutes long.");
+        }
       };
+      video.src = URL.createObjectURL(file);
+    } else {
+      alert("Please select an image or a video.");
+    }
+  };
+  
 
-      if (mediaFile) {
-        const storageRef = ref(storage, `media/${new Date().getTime()}_${mediaFile.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, mediaFile);
-
-        uploadTask.on(
-          'state_changed',
+  const sendMessage = async () => {
+    console.log('Sending message...');
+    if (selectedChat && (newMessage.trim() || selectedMedia)) {
+      let mediaUrl = '';
+  
+      if (selectedMedia) {
+        // Upload media file if selected
+        const storageRef = ref(storage, `media/${selectedMedia.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, selectedMedia);
+  
+        uploadTask.on('state_changed',
           (snapshot) => {
             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
+            console.log('Upload is ' + progress + '% done');
           },
           (error) => {
             console.error('Error uploading file:', error);
           },
           async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            message.mediaUrl = downloadURL;
-            message.mediaType = mediaFile.type.startsWith('image') ? 'image' : 'video';
-
-            socket.emit('sendMessage', message);
-            setNewMessage('');
-            setMediaFile(null);
-            setUploadProgress(0);
-
-            try {
-              await addDoc(collection(db, 'messages'), message);
-            } catch (error) {
-              console.error("Error saving message:", error);
-            }
+            // Media upload completed, get download URL
+            mediaUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            await sendMessageToFirestore(mediaUrl);
           }
         );
       } else {
-        socket.emit('sendMessage', message);
-        setNewMessage('');
-
-        try {
-          await addDoc(collection(db, 'messages'), message);
-        } catch (error) {
-          console.error("Error saving message:", error);
-        }
+        // No media file selected, send message without media
+        await sendMessageToFirestore(mediaUrl);
       }
     }
   };
+  
 
-  const handleMediaChange = (event) => {
-    const file = event.target.files[0];
-    if (file && (file.type.startsWith('image') || (file.type.startsWith('video') && file.duration <= 120))) {
-      setMediaFile(file);
-    } else {
-      alert('Please select an image or a video up to 2 minutes long.');
+  const sendMessageToFirestore = async (mediaUrl) => {
+    const message = {
+      chatId: selectedChat.id,
+      sender: currentUser.email,
+      text: newMessage,
+      mediaUrl: mediaUrl,
+      timestamp: new Date().toISOString()
+    };
+
+    socket.emit('sendMessage', message);
+    setNewMessage('');
+    setSelectedMedia(null);
+
+    try {
+      await addDoc(collection(db, 'messages'), message);
+    } catch (error) {
+      console.error("Error saving message:", error);
     }
   };
 
@@ -279,7 +287,7 @@ const Chat = () => {
           Back to Contacts
         </button>
       )}
-            <div className='flex justify-between items-center p-4 border-b border-gray-300'>
+      <div className='flex justify-between items-center p-4 border-b border-gray-300'>
         <h2 className='text-xl text-white'>{selectedChat?.firstname}</h2>
         <div className='flex items-center'>
           <button className='ml-4 p-2'>
@@ -291,19 +299,18 @@ const Chat = () => {
         </div>
       </div>
       <div className='flex-grow overflow-y-auto p-4'>
-        {(messages[selectedChat.id] || []).map((msg, index) => (
+        {([...messages[selectedChat.id]] || []).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)).map((msg, index) => (
           <div key={index}>
             <div className={`relative flex mb-2 ${msg.sender === currentUser.email ? 'justify-end' : 'justify-start'}`}>
               <div className={`inline-block p-2 rounded-lg ${msg.sender === currentUser.email ? 'bg-blue-500 text-white' : 'bg-gray-700 text-white'}`}>
                 {msg.text}
                 {msg.mediaUrl && (
-                  msg.mediaType === 'image' ? (
-                    <img src={msg.mediaUrl} alt="Media" className="mt-2 max-w-xs rounded-lg" />
-                  ) : (
-                    <video controls className="mt-2 max-w-xs rounded-lg">
+                  msg.mediaUrl.includes('video') ? (
+                    <video controls className='mt-2'>
                       <source src={msg.mediaUrl} type="video/mp4" />
-                      Your browser does not support the video tag.
                     </video>
+                  ) : (
+                    <img src={msg.mediaUrl} alt="media" className='mt-2' />
                   )
                 )}
               </div>
@@ -324,28 +331,23 @@ const Chat = () => {
         />
         <input
           type="file"
-          id="mediaUpload"
           accept="image/*,video/*"
-          className="hidden"
-          onChange={handleMediaChange}
+          style={{ display: 'none' }}
+          ref={fileInputRef}
+          onChange={handleFileChange}
         />
-        <label htmlFor="mediaUpload" className="ml-2 p-2 cursor-pointer">
+        <button className='ml-2 p-2' onClick={() => fileInputRef.current.click()}>
           <i className="ti ti-paperclip text-gray-300 text-2xl"></i>
-        </label>
-        <button className='ml-2 p-2' onClick={sendMessage}>
+        </button>
+        <button className='ml-2 p-2 rotate-arrow' onClick={sendMessage}>
           <i className="ti ti-send text-gray-300 text-2xl"></i>
         </button>
       </div>
-      {uploadProgress > 0 && uploadProgress < 100 && (
-        <div className="p-4">
-          <div className="relative w-full bg-gray-200 rounded">
-            <div className="absolute top-0 left-0 h-full bg-blue-500 rounded" style={{ width: `${uploadProgress}%` }}></div>
-            <span className="relative text-white">{uploadProgress.toFixed(2)}%</span>
-          </div>
-        </div>
-      )}
     </div>
   );
+  
+  
+  
 
   const formatMessageTime = (timestamp) => {
     const date = new Date(timestamp);

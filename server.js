@@ -10,9 +10,7 @@ const io = socketIo(server, {
   },
 });
 
-// Store users and conversations in memory (for simplicity)
 let users = [];
-let conversations = {};
 
 io.on('connection', (socket) => {
   console.log('New client connected', socket.id);
@@ -22,14 +20,19 @@ io.on('connection', (socket) => {
     io.emit('updateUsers', users);
   });
 
-  socket.on('sendMessage', (message) => {
-    const { chatId } = message;
-    if (!conversations[chatId]) {
-      conversations[chatId] = [];
-    }
-    conversations[chatId].push(message);
-    io.emit('receiveMessage', message);
+  socket.on('joinChat', (chatId) => {
+    socket.join(chatId);
+    console.log(`Socket ${socket.id} joined chat ${chatId}`);
   });
+
+  socket.on('sendMessage', (message) => {
+    const { chatId, recipient } = message;
+    const recipientSocket = users.find(user => user.email === recipient)?.socketId;
+    if (recipientSocket) {
+      io.to(recipientSocket).emit('receiveMessage', message);
+    }
+  });
+  
 
   socket.on('disconnect', () => {
     users = users.filter(user => user.socketId !== socket.id);
