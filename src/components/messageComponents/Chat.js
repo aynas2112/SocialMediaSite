@@ -182,29 +182,29 @@ const Chat = () => {
   };
   
 
-  const sendMessageToFirestore = async (mediaUrl) => {
-    if (!selectedChat) {
-      return; // No selected chat, return early
-    }
+  // const sendMessageToFirestore = async (mediaUrl) => {
+  //   if (!selectedChat) {
+  //     return; // No selected chat, return early
+  //   }
   
-    const message = {
-      chatId: selectedChat.id,
-      sender: currentUser.email,
-      text: newMessage,
-      mediaUrl: mediaUrl,
-      timestamp: new Date().toISOString()
-    };
+  //   const message = {
+  //     chatId: selectedChat.id,
+  //     sender: currentUser.email,
+  //     text: newMessage,
+  //     mediaUrl: mediaUrl,
+  //     timestamp: new Date().toISOString()
+  //   };
   
-    socket.emit('sendMessage', message);
-    setNewMessage('');
-    setSelectedMedia(null);
+  //   socket.emit('sendMessage', message);
+  //   setNewMessage('');
+  //   setSelectedMedia(null);
   
-    try {
-      await addDoc(collection(db, 'messages'), message);
-    } catch (error) {
-      console.error("Error saving message:", error);
-    }
-  };
+  //   try {
+  //     await addDoc(collection(db, 'messages'), message);
+  //   } catch (error) {
+  //     console.error("Error saving message:", error);
+  //   }
+  // };
   
   
 
