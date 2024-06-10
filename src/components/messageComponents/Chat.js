@@ -71,24 +71,70 @@ const Chat = () => {
     };
   }, []);
 
+  // useEffect(() => {
+  //   socket.on('receiveMessage', (message) => {
+  //     console.log('Received message:', message);
+  //     const chatId = message.chatId;
+  //     if (message.sender !== currentUser.email) {
+  //       setMessages((prevMessages) => ({
+  //         ...prevMessages,
+  //         [chatId]: [...(prevMessages[chatId] || []), message]
+  //       }));
+  //     }
+  //   });
+        
+
+  //   return () => {
+  //     socket.off('receiveMessage');
+  //   };
+  // }, []);
   useEffect(() => {
-    socket.on('receiveMessage', (message) => {
+    const handleReceiveMessage = (message) => {
+      console.log('Received message:', message);
       const chatId = message.chatId;
       setMessages((prevMessages) => ({
         ...prevMessages,
         [chatId]: [...(prevMessages[chatId] || []), message]
       }));
-    });
-
-    return () => {
-      socket.off('receiveMessage');
     };
-  }, []);
+  
+    socket.on('receiveMessage', handleReceiveMessage);
+  
+    return () => {
+      socket.off('receiveMessage', handleReceiveMessage);
+    };
+  }, [currentUser]);
+  
 
+  // useEffect(() => {
+  //   const fetchMessages = async () => {
+  //     if (selectedChat) {
+  //       socket.emit('joinChat', selectedChat.id); // Join the chat room
+  //       try {
+  //         const messagesCollection = collection(db, 'messages');
+  //         const q = query(
+  //           messagesCollection,
+  //           where('chatId', '==', selectedChat.id),
+  //           orderBy('timestamp', 'asc')
+  //         );
+  //         const messagesSnapshot = await getDocs(q);
+  //         const messagesList = messagesSnapshot.docs.map(doc => doc.data());
+  //         setMessages(prevMessages => ({
+  //           ...prevMessages,
+  //           [selectedChat.id]: [...(prevMessages[selectedChat.id] || []), messagesList]
+  //         }));          
+  //       } catch (error) {
+  //         console.error("Error fetching messages:", error);
+  //       }
+  //     }
+  //   };
+
+  //   fetchMessages();
+  // }, [selectedChat]);
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (selectedChat) {
-        socket.emit('joinChat', selectedChat.id); // Join the chat room
+    if (selectedChat) {
+      socket.emit('joinChat', selectedChat.id); // Join the chat room
+      const fetchMessages = async () => {
         try {
           const messagesCollection = collection(db, 'messages');
           const q = query(
@@ -105,11 +151,12 @@ const Chat = () => {
         } catch (error) {
           console.error("Error fetching messages:", error);
         }
-      }
-    };
-
-    fetchMessages();
+      };
+  
+      fetchMessages();
+    }
   }, [selectedChat]);
+  
 
   useEffect(() => {
     const fetchAllMessages = async () => {
@@ -212,32 +259,79 @@ const Chat = () => {
         await sendMessageToFirestore(mediaUrl);
         console.log('Message sent.');
       }
+  
+      if (newMessage.trim()) { // Check if the message is not empty
+        // Append the sent message to the sender's chat window immediately
+        const sentMessage = {
+          chatId: selectedChat.id,
+          sender: currentUser.email,
+          receiver: selectedChat.email,
+          text: newMessage,
+          mediaUrl: mediaUrl,
+          timestamp: new Date().toISOString()
+        };
+  
+        setMessages(prevMessages => {
+          const updatedMessages = {
+            ...prevMessages,
+            [selectedChat.id]: [...(prevMessages[selectedChat.id] || []), sentMessage]
+          };
+          return updatedMessages;
+        });
+      }
+      
+      setNewMessage('');
+      setSelectedMedia(null);
     } else {
       console.log('No chat selected or message content empty.');
     }
   };
   
   
+  
+  
 
-  const sendMessageToFirestore = async (mediaUrl) => {
-    const message = {
-      chatId: selectedChat.id,
-      sender: currentUser.email,
-      text: newMessage,
-      mediaUrl: mediaUrl,
-      timestamp: new Date().toISOString()
-    };
-
-    socket.emit('sendMessage', message);
-    setNewMessage('');
-    setSelectedMedia(null);
-
-    try {
-      await addDoc(collection(db, 'messages'), message);
-    } catch (error) {
-      console.error("Error saving message:", error);
-    }
+  // When sending a message
+const sendMessageToFirestore = async (mediaUrl) => {
+  const message = {
+    chatId: selectedChat.id,
+    sender: currentUser.email, // Set sender to current user's email
+    receiver: selectedChat.email, // Set receiver to selected chat's email
+    text: newMessage,
+    mediaUrl: mediaUrl,
+    timestamp: new Date().toISOString()
   };
+
+  socket.emit('sendMessage', message);
+  setNewMessage('');
+  setSelectedMedia(null);
+
+  try {
+    await addDoc(collection(db, 'messages'), message);
+  } catch (error) {
+    console.error("Error saving message:", error);
+  }
+};
+
+// When receiving a message
+useEffect(() => {
+  socket.on('receiveMessage', (message) => {
+    console.log('Received message:', message);
+    const chatId = message.chatId;
+    if (message.sender !== currentUser.email) {
+      setMessages((prevMessages) => ({
+        ...prevMessages,
+        [chatId]: [...(prevMessages[chatId] || []), message]
+      }));
+    }
+  });
+
+  return () => {
+    socket.off('receiveMessage');
+  };
+}, [currentUser]);
+
+  
 
   const renderContactsList = () => (
     <div className={`flex flex-col ${isMobile ? 'w-full h-full' : 'w-full h-screen'}`}>
@@ -349,18 +443,17 @@ const Chat = () => {
         </button>
       </div>
     </div>
-  );
+  );  
   
-  
-  
-  
-
   const formatMessageTime = (timestamp) => {
+    if (!timestamp) return ''; // Handle empty timestamp
+  
     const date = new Date(timestamp);
     const hours = date.getHours();
     const minutes = date.getMinutes().toString().padStart(2, '0');
     return `${hours}:${minutes}`;
   };
+  
 
   const renderSendMessageButton = () => (
     <div className='flex items-center justify-center h-full'>
@@ -444,3 +537,6 @@ const Chat = () => {
 };
 
 export default Chat;
+
+// the issue is message instead of being visible to the receiver is visible to sender twice 
+// this might be due to receiver and sender saath m likha hua h in event pipeline can u separate them both so that the message delivered to receiver is visible to receiver only and not to sender twice
