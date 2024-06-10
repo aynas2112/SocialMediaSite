@@ -291,6 +291,7 @@ const Chat = () => {
   
   
 
+<<<<<<< Updated upstream
   // When sending a message
 const sendMessageToFirestore = async (mediaUrl) => {
   const message = {
@@ -333,6 +334,8 @@ useEffect(() => {
 
   
 
+=======
+>>>>>>> Stashed changes
   const renderContactsList = () => (
     <div className={`flex flex-col ${isMobile ? 'w-full h-full' : 'w-full h-screen'}`}>
       <div className='flex items-center p-4'>
@@ -438,7 +441,8 @@ useEffect(() => {
         <button className='ml-2 p-2' onClick={() => fileInputRef.current.click()}>
           <i className="ti ti-paperclip text-gray-300 text-2xl"></i>
         </button>
-        <button className='ml-2 p-2 rotate-arrow' onClick={sendMessage}>
+        <button className='ml-2 p-2 rotate-arrow' > 
+        {/* onClick={sendMessage} */}
           <i className="ti ti-send text-gray-300 text-2xl"></i>
         </button>
       </div>
