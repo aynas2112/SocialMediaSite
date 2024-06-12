@@ -7,47 +7,6 @@ import {
   FaUserCircle,
 } from "react-icons/fa";
 import { jwtDecode } from "jwt-decode";
-import { gql, useQuery } from "@apollo/client";
-
-const stories = [
-  { id: 1, name: "John", img: "https://via.placeholder.com/50" },
-  { id: 2, name: "Jane", img: "https://via.placeholder.com/50" },
-  { id: 3, name: "Mike", img: "https://via.placeholder.com/50" },
-  { id: 4, name: "Alice", img: "https://via.placeholder.com/50" },
-  { id: 4, name: "Alice", img: "https://via.placeholder.com/50" },
-];
-
-const posts = [
-  {
-    id: 1,
-    username: "john_doe",
-    img: "https://via.placeholder.com/500",
-    caption: "Beautiful view!",
-  },
-  {
-    id: 2,
-    username: "jane_smith",
-    img: "https://via.placeholder.com/500",
-    caption: "Loving the vibes!",
-  },
-];
-
-const GET_FOLLOWING = gql`
-  query GetProfile($getProfileId: String!) {
-    getProfile(id: $getProfileId) {
-      following
-    }
-  }
-`;
-
-const GET_STORIES = gql`
-  query GetProfile($getProfileId: String!) {
-    getProfile(id: $getProfileId) {
-      fname
-      profileImageUrl
-    }
-  }
-`;
 
 const MainFeed = () => {
   const token = localStorage.getItem("jwt");
@@ -55,31 +14,36 @@ const MainFeed = () => {
   const { user_id } = decoded;
   const [followingDetails, setFollowingDetails] = useState([]);
 
-  const { loading, error, data } = useQuery(GET_FOLLOWING, {
-    variables: { getProfileId: user_id },
-  });
-
   useEffect(() => {
-    if (data && data.getProfile.following.length > 0) {
-      const fetchFollowingDetails = async () => {
-        const promises = data.getProfile.following.map(async (id) => {
-          const { data } = await client.query({
-            query: GET_STORIES,
-            variables: { getProfileId: id },
-          });
-          return data.getProfile;
+    const fetchPost = async () => {
+      try {
+        const response = await fetch(`http://localhost:6001/user/feed`,{
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`, // Include the JWT in the Authorization header
+          }
         });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        console.log(data.data);
+        setFollowingDetails(data.data);
+      } catch (error) {
+        console.error('Fetch error:', error);
+      }
+    };
 
-        const details = await Promise.all(promises);
-        setFollowingDetails(details);
-      };
+    fetchPost();
+  }, []);
 
-      fetchFollowingDetails();
-    }
-  }, [data]);
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>Error: {error.message}</p>;
-
+  const posts = followingDetails.flatMap(detail => 
+    detail.posts.map(post => ({
+      ...post,
+      f_name: detail.f_name,
+      profile_picture_url: detail.profile_picture_url
+    }))
+  ).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
@@ -99,38 +63,41 @@ const MainFeed = () => {
       <main className="flex-1 mt-16 p-4">
         {/* Stories */}
         <div className="flex space-x-4 overflow-x-scroll pb-4">
-          {followingDetails.map((story) => (
-            <div key={story.id} className="flex flex-col items-center">
+          {followingDetails.map((detail) => (
+            <div key={detail.id} className="flex flex-col items-center">
               <img
-                src={story.profileImageUrl}
-                alt={story.fname}
+                src={detail.profile_picture_url}
+                alt={detail.f_name}
                 className="w-16 h-16 rounded-full border-2 border-red-500"
               />
-              <span className="text-sm mt-2">{story.name}</span>
+              <span className="text-sm mt-2">{detail.f_name}</span>
             </div>
           ))}
         </div>
 
         {/* Posts */}
         <div className="space-y-8">
-          {posts.map((post) => (
-            <div key={post.id} className="bg-gray-800 p-4 rounded-md shadow-md">
-              <div className="flex items-center space-x-4 mb-4">
-                <img
-                  src="https://via.placeholder.com/40"
-                  alt={post.username}
-                  className="w-10 h-10 rounded-full"
-                />
-                <span className="font-bold">{post.username}</span>
-              </div>
-              <img src={post.img} alt="Post" className="w-full rounded-md" />
-              <p className="mt-4">
-                <span className="font-bold">{post.username} </span>
-                {post.caption}
-              </p>
-            </div>
-          ))}
+      {posts.map(post => (
+        <div key={post.post_id} className="bg-gray-800 p-4 rounded-md shadow-md">
+          <div className="flex items-center space-x-4 mb-4">
+            <img
+              src={post.profile_picture_url || "https://via.placeholder.com/40"}
+              alt={post.f_name}
+              className="w-10 h-10 rounded-full"
+            />
+            <span className="font-bold">{post.f_name}</span>
+          </div>
+          {post.image_url && (
+            <img src={post.image_url} alt="Post" className="w-full rounded-md" />
+          )}
+          <p className="mt-4">
+            <span className="font-bold">{post.f_name} </span>
+            {post.content}
+          </p>
+          <p className="text-sm text-gray-400 mt-2">{new Date(post.created_at).toLocaleString()}</p>
         </div>
+      ))}
+    </div>
       </main>
 
       {/* Bottom navigation */}
