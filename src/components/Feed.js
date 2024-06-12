@@ -63,6 +63,7 @@ const MainFeed = () => {
       <main className="flex-1 mt-16 p-4">
         {/* Stories */}
         <div className="flex space-x-4 overflow-x-scroll pb-4">
+          
           {followingDetails.map((detail) => (
             <div key={detail.id} className="flex flex-col items-center">
               <img
