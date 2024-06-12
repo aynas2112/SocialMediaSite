@@ -438,7 +438,8 @@ useEffect(() => {
         <button className='ml-2 p-2' onClick={() => fileInputRef.current.click()}>
           <i className="ti ti-paperclip text-gray-300 text-2xl"></i>
         </button>
-        <button className='ml-2 p-2 rotate-arrow' onClick={sendMessage}>
+        <button className='ml-2 p-2 rotate-arrow' > 
+        {/* onClick={sendMessage} */}
           <i className="ti ti-send text-gray-300 text-2xl"></i>
         </button>
       </div>

@@ -6,7 +6,10 @@ import Home from './components/Home';
 import SignUp from './components/authComponents/Signup';
 import ForgotPassword from './components/authComponents/ForgotPassword';
 import MessageApp from './components/messageComponents/MessageApp';
-import UploadImage from './components/UploadImage'
+import UploadImage from './components/UploadImage';
+import EditProfile from './components/EditProfile';
+import Profile from './components/Profile';
+import Feed from './components/Feed';
 import { AuthProvider } from './contexts/authContexts';
 import { gql,useMutation,useQuery } from '@apollo/client';
 
@@ -20,8 +23,11 @@ function App() {
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/home" element={<Home />} />
+          <Route path="/feed" element={<Feed />} />
           <Route path="/messages" element={<MessageApp />} />
           <Route path="/uploads" element={<UploadImage />} />
+          <Route path="/profile/edit" element={<EditProfile />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/" element={<Navigate to="/login" />} />
         </Routes>
       </Router>
