@@ -1,34 +1,34 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
 import {
   FaHome,
   FaSearch,
   FaPlusSquare,
   FaHeart,
   FaUserCircle,
-} from "react-icons/fa";
-import { jwtDecode } from "jwt-decode";
-import { gql, useQuery } from "@apollo/client";
+} from 'react-icons/fa';
+import { jwtDecode } from 'jwt-decode';
+import { gql, useQuery, ApolloClient, InMemoryCache } from '@apollo/client';
 
 const stories = [
-  { id: 1, name: "John", img: "https://via.placeholder.com/50" },
-  { id: 2, name: "Jane", img: "https://via.placeholder.com/50" },
-  { id: 3, name: "Mike", img: "https://via.placeholder.com/50" },
-  { id: 4, name: "Alice", img: "https://via.placeholder.com/50" },
-  { id: 4, name: "Alice", img: "https://via.placeholder.com/50" },
+  { id: 1, name: 'John', img: 'https://via.placeholder.com/50' },
+  { id: 2, name: 'Jane', img: 'https://via.placeholder.com/50' },
+  { id: 3, name: 'Mike', img: 'https://via.placeholder.com/50' },
+  { id: 4, name: 'Alice', img: 'https://via.placeholder.com/50' },
+  { id: 5, name: 'Alice', img: 'https://via.placeholder.com/50' },
 ];
 
 const posts = [
   {
     id: 1,
-    username: "john_doe",
-    img: "https://via.placeholder.com/500",
-    caption: "Beautiful view!",
+    username: 'john_doe',
+    img: 'https://via.placeholder.com/500',
+    caption: 'Beautiful view!',
   },
   {
     id: 2,
-    username: "jane_smith",
-    img: "https://via.placeholder.com/500",
-    caption: "Loving the vibes!",
+    username: 'jane_smith',
+    img: 'https://via.placeholder.com/500',
+    caption: 'Loving the vibes!',
   },
 ];
 
@@ -49,8 +49,13 @@ const GET_STORIES = gql`
   }
 `;
 
+const client = new ApolloClient({
+  uri: 'YOUR_GRAPHQL_SERVER_URL',
+  cache: new InMemoryCache(),
+});
+
 const MainFeed = () => {
-  const token = localStorage.getItem("jwt");
+  const token = localStorage.getItem('jwt');
   const decoded = jwtDecode(token);
   const { user_id } = decoded;
   const [followingDetails, setFollowingDetails] = useState([]);
@@ -77,9 +82,9 @@ const MainFeed = () => {
       fetchFollowingDetails();
     }
   }, [data]);
+
   if (loading) return <p>Loading...</p>;
   if (error) return <p>Error: {error.message}</p>;
-
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
@@ -106,7 +111,7 @@ const MainFeed = () => {
                 alt={story.fname}
                 className="w-16 h-16 rounded-full border-2 border-red-500"
               />
-              <span className="text-sm mt-2">{story.name}</span>
+              <span className="text-sm mt-2">{story.fname}</span>
             </div>
           ))}
         </div>
