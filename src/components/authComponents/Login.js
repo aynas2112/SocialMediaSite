@@ -68,13 +68,13 @@ const Login = () => {
       try {
         const res = await doSignInWithGoogle();
         const token = localStorage.getItem('jwt');
-        console.log("sending to backend:");
-        console.log(token);
+        // console.log("sending to backend:");
+        // console.log(token);
         console.log(res);
         const response = await fetch("http://localhost:6001/user/signin", {
           method: "POST",
           headers: {
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${res.token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify(res),
@@ -84,6 +84,7 @@ const Login = () => {
         }
 
         const data = await response.json(); // Parse the response body as JSON
+        console.log("data from backend:\n", data);
         if (data.token) {
           localStorage.setItem("jwt", data.token);
         } else {

@@ -25,8 +25,11 @@ const Home = () => {
         <Link to='/uploads'>
           <button className='bg-[#8E44AD] text-[#F1C40F] p-2 rounded'>Post</button>
         </Link>
-        <Link to='/profile/edit'>
+        <Link to='/profile'>
           <button className='bg-[#8E44AD] text-[#F1C40F] p-2 rounded'>Profile</button>
+        </Link>
+        <Link to='/feed'>
+          <button className='bg-[#8E44AD] text-[#F1C40F] p-2 rounded'>Feed</button>
         </Link>
         <button onClick={handleSignOut} className='ml-4 bg-[#8E44AD] text-[#F1C40F] p-2 rounded'>Sign Out</button>
       </div>

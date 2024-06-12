@@ -9,6 +9,7 @@ import MessageApp from './components/messageComponents/MessageApp';
 import UploadImage from './components/UploadImage';
 import EditProfile from './components/EditProfile';
 import Profile from './components/Profile';
+import Feed from './components/Feed';
 import { AuthProvider } from './contexts/authContexts';
 import { gql,useMutation,useQuery } from '@apollo/client';
 
@@ -22,6 +23,7 @@ function App() {
           <Route path="/signup" element={<SignUp />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/home" element={<Home />} />
+          <Route path="/feed" element={<Feed />} />
           <Route path="/messages" element={<MessageApp />} />
           <Route path="/uploads" element={<UploadImage />} />
           <Route path="/profile/edit" element={<EditProfile />} />

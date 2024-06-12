@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-
+import { useNavigate } from 'react-router-dom';
 const UploadImage = () => {
+  const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [file, setFile] = useState(null);
@@ -43,8 +44,9 @@ const UploadImage = () => {
         if (!response.ok) {
           throw new Error('Failed to upload file.');
         }
-      
+        
         setMessage('File uploaded successfully!');
+        navigate('/home');
       } catch (error) {
         setMessage('Failed to upload file.');
       } finally {

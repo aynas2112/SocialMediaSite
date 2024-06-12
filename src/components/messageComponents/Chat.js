@@ -291,7 +291,6 @@ const Chat = () => {
   
   
 
-<<<<<<< Updated upstream
   // When sending a message
 const sendMessageToFirestore = async (mediaUrl) => {
   const message = {
@@ -334,8 +333,6 @@ useEffect(() => {
 
   
 
-=======
->>>>>>> Stashed changes
   const renderContactsList = () => (
     <div className={`flex flex-col ${isMobile ? 'w-full h-full' : 'w-full h-screen'}`}>
       <div className='flex items-center p-4'>
