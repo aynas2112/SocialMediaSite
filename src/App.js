@@ -10,11 +10,10 @@ import UploadImage from './components/UploadImage';
 import EditProfile from './components/EditProfile';
 import Profile from './components/Profile';
 import Feed from './components/Feed';
+import CreatePost from './components/createPostComponents/CreatePost';
 import { AuthProvider } from './contexts/authContexts';
-import { gql,useMutation,useQuery } from '@apollo/client';
 
 function App() {  
-  
   return (
     <AuthProvider>
       <Router>
@@ -26,6 +25,7 @@ function App() {
           <Route path="/feed" element={<Feed />} />
           <Route path="/messages" element={<MessageApp />} />
           <Route path="/uploads" element={<UploadImage />} />
+          <Route path="/create-post" element={<CreatePost />} />
           <Route path="/profile/edit" element={<EditProfile />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/" element={<Navigate to="/login" />} />
